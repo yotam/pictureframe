@@ -32,7 +32,7 @@ class PictureFrame(object):
     def __init__(self, data=None, fixed_dim=2):
 
         self._data_shape = None
-        self._data = {}
+        self._data = OrderedDict()
         self._fixed_dim = fixed_dim
 
         if isinstance(data, dict):
@@ -94,7 +94,7 @@ class PictureFrame(object):
         with the supplied PictureFrame
         """
         if isinstance(args, str):
-            return self.add_array(args, values)
+            return self._add_array(args, values)
 
         elif isinstance(values, PictureFrame):
             for k, v in self._data.items():
@@ -102,7 +102,7 @@ class PictureFrame(object):
         else:
             raise ValueError('Value type not understood')
 
-    def add_array(self, name, value):
+    def _add_array(self, name, value):
 
         if self._data_shape is None:
             self._fixed_dim = 2  # TODO
@@ -167,7 +167,7 @@ class PictureFrame(object):
 
         return PictureFrame(data, fixed_dim=self._fixed_dim)
 
-    def groupby(self, by):
+    def groupby(self, by, yield_label=True):
         """
         Group PictureFrame by data array name or by array of labels.
 
@@ -175,11 +175,13 @@ class PictureFrame(object):
         ----------
         by : string or ndarray
             Name of data array or array of label values.
+        yield_label : bool, optional
+            Returns label value and PictureFrame tuple if True,
+            otherwise just the indexed PictureFrame
 
         Returns
         -------
-        it : generator
-            Yields tuples of (label, PictureFrame) at corresponding locations
+        it : generator of PictureFrame or (label, PictureFrame)
         """
 
         # can either use a data array by name or use a supplied label array
@@ -193,7 +195,11 @@ class PictureFrame(object):
             labels = by
 
         for label in np.unique(labels):
-            yield label, self.__getitem__(labels == label)
+            sub_pf = self.__getitem__(labels == label)
+            if yield_label:
+                yield label, sub_pf
+            else:
+                yield sub_pf
 
     def browse(self):
         """
@@ -207,7 +213,10 @@ class PictureFrame(object):
             if v.ndim == 2:
                 plt.imshow(v, cmap='Greys_r')
             else:
-                plt.imshow(v)
+                try:
+                    plt.imshow(v)
+                except TypeError:
+                    pass
             plt.title(k)
             plt.waitforbuttonpress()
         plt.close()
